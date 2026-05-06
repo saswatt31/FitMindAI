@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 qdrant-client
-google-genai
+fastembed
 groq
 pydantic
 python-dotenv
