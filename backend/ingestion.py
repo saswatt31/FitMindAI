@@ -1,17 +1,22 @@
 import os
+import google.generativeai as genai
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
 
-# Initialize embedding model (downloads once ~80MB)
-print("Loading embedding model...")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-print("Embedding model loaded.")
+load_dotenv()
 
-# Initialize Qdrant in-memory (no installation issues on Windows)
+# Configure Gemini for Embeddings
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_KEY:
+    genai.configure(api_key=GEMINI_KEY)
+else:
+    print("Warning: GEMINI_API_KEY not found. Embeddings will fail.")
+
+# Initialize Qdrant in-memory
 client = QdrantClient(":memory:")
 COLLECTION = "nutrition_kb"
-VECTOR_SIZE = 384  # all-MiniLM-L6-v2 output size
+VECTOR_SIZE = 768  # Gemini text-embedding-004 size
 
 # Create collection
 client.recreate_collection(
@@ -33,16 +38,25 @@ def chunk_text(text: str, chunk_size: int = 150, overlap: int = 20) -> list[str]
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings using local sentence-transformers."""
-    return embedder.encode(texts, convert_to_numpy=True).tolist()
+    """Generate embeddings using Gemini Cloud API."""
+    if not GEMINI_KEY:
+        raise ValueError("GEMINI_API_KEY is not set.")
+    
+    # Gemini allows batch embedding
+    result = genai.embed_content(
+        model="models/text-embedding-004",
+        content=texts,
+        task_type="retrieval_document"
+    )
+    return result['embeddings']
 
 
 def ingest_documents(folder: str = None):
     """Load .txt files, chunk, embed, and store in Qdrant."""
     if folder is None:
-        # Resolve path relative to this file (backend/ingestion.py -> root/knowledge_base)
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         folder = os.path.join(base_dir, "knowledge_base")
+    
     if not os.path.exists(folder):
         print(f"Knowledge base folder not found: {folder}")
         return
@@ -60,7 +74,11 @@ def ingest_documents(folder: str = None):
         chunks = chunk_text(text)
         print(f"  {fname}: {len(chunks)} chunks")
 
+        if not chunks:
+            continue
+
         docs.extend([{"text": c, "source": fname} for c in chunks])
+        # Generate embeddings in one batch call to Gemini
         vectors.extend(embed(chunks))
 
     if not docs:
