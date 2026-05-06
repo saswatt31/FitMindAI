@@ -1,22 +1,23 @@
 import os
-import google.generativeai as genai
+from google import genai
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Gemini for Embeddings
+# Configure Gemini for Embeddings using the NEW google-genai library
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
-    genai.configure(api_key=GEMINI_KEY)
+    genai_client = genai.Client(api_key=GEMINI_KEY)
 else:
+    genai_client = None
     print("Warning: GEMINI_API_KEY not found. Embeddings will fail.")
 
 # Initialize Qdrant in-memory
 client = QdrantClient(":memory:")
 COLLECTION = "nutrition_kb"
-VECTOR_SIZE = 768  # Gemini text-embedding-004 size
+VECTOR_SIZE = 768  # embedding-001 size
 
 # Create collection
 client.recreate_collection(
@@ -39,16 +40,17 @@ def chunk_text(text: str, chunk_size: int = 150, overlap: int = 20) -> list[str]
 
 def embed(texts: list[str]) -> list[list[float]]:
     """Generate embeddings using Gemini Cloud API."""
-    if not GEMINI_KEY:
+    if not genai_client:
         raise ValueError("GEMINI_API_KEY is not set.")
     
-    # Gemini allows batch embedding
-    result = genai.embed_content(
-        model="models/text-embedding-004",
-        content=texts,
-        task_type="retrieval_document"
+    # Use the stable embedding-001 model
+    response = genai_client.models.embed_content(
+        model="embedding-001",
+        contents=texts
     )
-    return result['embeddings']
+    
+    # Extract embeddings from response
+    return [item.values for item in response.embeddings]
 
 
 def ingest_documents(folder: str = None):
@@ -78,7 +80,7 @@ def ingest_documents(folder: str = None):
             continue
 
         docs.extend([{"text": c, "source": fname} for c in chunks])
-        # Generate embeddings in one batch call to Gemini
+        # Generate embeddings
         vectors.extend(embed(chunks))
 
     if not docs:
