@@ -304,7 +304,7 @@ export default function ChatArea() {
   };
 
   return (
-    <main className=" h-full min-h-0 flex flex-col relative z-10 bg-[#080c10]">
+    <main className="w-full h-full min-h-0 flex flex-col relative z-10 bg-[#080c10]">
       {/* Header */}
       <header className={cn(glassStyles.glass, "h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/40")}>
         <div className="flex flex-col">

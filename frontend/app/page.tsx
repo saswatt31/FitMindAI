@@ -44,7 +44,7 @@ export default function Home() {
       case "planner":
         return (
           <div className="flex-1 h-full min-h-0 flex flex-col lg:flex-row pt-20 overflow-hidden">
-            <div className="min-h-0">
+            <div className="min-h-0 flex-1 h-full">
                <ChatArea />
             </div>
             <div className="w-full lg:w-[380px] h-full p-4 lg:p-0 lg:pr-8 lg:pb-8 flex flex-col animate-in">
