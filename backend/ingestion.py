@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Gemini for Embeddings using the NEW google-genai library
+# Configure Gemini for Embeddings
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_KEY:
     genai_client = genai.Client(api_key=GEMINI_KEY)
@@ -17,13 +17,17 @@ else:
 # Initialize Qdrant in-memory
 client = QdrantClient(":memory:")
 COLLECTION = "nutrition_kb"
-VECTOR_SIZE = 768  # embedding-001 size
+VECTOR_SIZE = 768  # Standard size for Gemini embeddings
 
 # Create collection
 client.recreate_collection(
     collection_name=COLLECTION,
     vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE)
 )
+
+# List of models to try (some regions/versions prefer different names)
+EMBEDDING_MODELS = ["text-embedding-004", "embedding-001"]
+_WORKING_MODEL = None
 
 
 def chunk_text(text: str, chunk_size: int = 150, overlap: int = 20) -> list[str]:
@@ -39,18 +43,28 @@ def chunk_text(text: str, chunk_size: int = 150, overlap: int = 20) -> list[str]
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings using Gemini Cloud API."""
+    """Generate embeddings with automatic model fallback."""
+    global _WORKING_MODEL
     if not genai_client:
         raise ValueError("GEMINI_API_KEY is not set.")
+
+    # If we already found a working model, use it
+    models_to_try = [_WORKING_MODEL] if _WORKING_MODEL else EMBEDDING_MODELS
     
-    # Use the stable embedding-001 model
-    response = genai_client.models.embed_content(
-        model="embedding-001",
-        contents=texts
-    )
-    
-    # Extract embeddings from response
-    return [item.values for item in response.embeddings]
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            response = genai_client.models.embed_content(
+                model=model_name,
+                contents=texts
+            )
+            _WORKING_MODEL = model_name  # Save the working model
+            return [item.values for item in response.embeddings]
+        except Exception as e:
+            last_error = e
+            continue
+            
+    raise last_error
 
 
 def ingest_documents(folder: str = None):
@@ -80,8 +94,11 @@ def ingest_documents(folder: str = None):
             continue
 
         docs.extend([{"text": c, "source": fname} for c in chunks])
-        # Generate embeddings
-        vectors.extend(embed(chunks))
+        try:
+            vectors.extend(embed(chunks))
+        except Exception as e:
+            print(f"  Error embedding {fname}: {e}")
+            continue
 
     if not docs:
         print("No documents found to ingest.")
