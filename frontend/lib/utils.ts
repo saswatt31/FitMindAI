@@ -52,7 +52,7 @@ export function calculateNutritionTargets(profile: UserProfile): NutritionTarget
   };
 }
 
-export const API_BASE = "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export async function fetchWithTimeout(resource: string, options: RequestInit & { timeout?: number } = {}) {
   const { timeout = 8000 } = options;

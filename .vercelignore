@@ -1,0 +1,11 @@
+# Ignore everything except the frontend for Vercel
+backend/
+knowledge_base/
+requirements.txt
+Dockerfile
+.env*
+venv/
+__pycache__/
+*.pyc
+.git/
+node_modules/

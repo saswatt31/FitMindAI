@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { Mic, Camera, Send, User, Trash2, Copy, ShoppingCart, Download, Sparkles, Loader2, FileText } from "lucide-react";
+import { Mic, Camera, Send, User, Trash2, Copy, ShoppingCart, Download, Sparkles, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -51,12 +51,12 @@ export default function ChatArea() {
   const [shoppingModal, setShoppingModal] = useState({ isOpen: false, text: "" });
   const [isExporting, setIsExporting] = useState(false);
   
-  const isProfileComplete = profile && 
+  const isProfileComplete = !!(profile && 
     profile.age > 10 && 
     profile.height_cm > 100 && 
     profile.weight_kg > 30 && 
-    profile.fitness_goal !== "" && 
-    profile.diet_preference !== "";
+    profile.fitness_goal && 
+    profile.diet_preference);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -429,7 +429,7 @@ export default function ChatArea() {
             <div className="absolute inset-x-0 bottom-full mb-4 animate-in slide-in-from-bottom-2">
               <div className={cn(glassStyles.glass, "p-4 rounded-2xl border-primary/20 bg-primary/5 flex items-center gap-4")}>
                 <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary shrink-0">
-                  <Badge size={16} />
+                  <AlertCircle size={16} />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-white leading-tight">Bio-data Missing</h4>
